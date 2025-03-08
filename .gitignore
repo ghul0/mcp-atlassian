@@ -57,6 +57,7 @@ local/
 
 # Credentials
 .pypirc
+tests/test_credentials.py
 
 # Pytest
 .pytest_cache/
