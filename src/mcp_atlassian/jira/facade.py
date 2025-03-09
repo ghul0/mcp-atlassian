@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Union
 from ..document_types import Document
 from ..config import JiraConfig
 from .issues import IssueManager
+from .projects import ProjectManager
 
 # Configure logging
 logger = logging.getLogger("mcp-jira")
@@ -32,6 +33,9 @@ class JiraFetcher:
         """
         # Initialize issue manager, which also handles general Jira client functionality
         self.issues = IssueManager(config=config)
+        
+        # Initialize project manager using the same client as issue manager
+        self.projects = ProjectManager(self.issues.client)
         
         # Make client properties available directly on the facade
         self.jira = self.issues.jira
@@ -163,3 +167,119 @@ class JiraFetcher:
     def get_epic_issues(self, epic_key: str, limit: int = 50) -> List[Document]:
         """Get all issues linked to a specific epic."""
         return self.issues.get_epic_issues(epic_key, limit)
+    
+    # Project methods
+    def get_projects(
+        self,
+        recent: Optional[int] = None,
+        expand: Optional[str] = None,
+        order_by: Optional[str] = None,
+        query: Optional[str] = None,
+        status: Optional[List[str]] = None,
+        type_key: Optional[List[str]] = None,
+        category_id: Optional[int] = None,
+        action: Optional[str] = None,
+        properties: Optional[List[str]] = None,
+    ) -> List[Document]:
+        """Get all projects from Jira."""
+        return self.projects.get_projects(
+            recent, expand, order_by, query, status, type_key, category_id, action, properties
+        )
+
+    def get_project(
+        self,
+        project_key_or_id: str,
+        expand: Optional[str] = None,
+        properties: Optional[List[str]] = None,
+    ) -> Document:
+        """Get details of a specific project."""
+        return self.projects.get_project(project_key_or_id, expand, properties)
+
+    def create_project(
+        self,
+        key: str,
+        name: str,
+        type_key: str,
+        description: Optional[str] = None,
+        lead_account_id: Optional[str] = None,
+        url: Optional[str] = None,
+        assignee_type: Optional[str] = None,
+        avatar_id: Optional[int] = None,
+        category_id: Optional[int] = None,
+        permission_scheme: Optional[int] = None,
+        notification_scheme: Optional[int] = None,
+        workflow_scheme: Optional[int] = None,
+        **kwargs: Any
+    ) -> Document:
+        """Create a new project in Jira."""
+        return self.projects.create_project(
+            key, name, type_key, description, lead_account_id, url, assignee_type,
+            avatar_id, category_id, permission_scheme, notification_scheme,
+            workflow_scheme, **kwargs
+        )
+
+    def update_project(
+        self,
+        project_key_or_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        lead_account_id: Optional[str] = None,
+        url: Optional[str] = None,
+        assignee_type: Optional[str] = None,
+        avatar_id: Optional[int] = None,
+        category_id: Optional[int] = None,
+        **kwargs: Any
+    ) -> Document:
+        """Update an existing project in Jira."""
+        return self.projects.update_project(
+            project_key_or_id, name, description, lead_account_id,
+            url, assignee_type, avatar_id, category_id, **kwargs
+        )
+
+    def delete_project(
+        self, 
+        project_key_or_id: str, 
+        enable_undo: bool = False
+    ) -> bool:
+        """Delete a project in Jira."""
+        return self.projects.delete_project(project_key_or_id, enable_undo)
+
+    def archive_project(self, project_key_or_id: str) -> bool:
+        """Archive a project in Jira."""
+        return self.projects.archive_project(project_key_or_id)
+
+    def restore_project(self, project_key_or_id: str) -> bool:
+        """Restore an archived project in Jira."""
+        return self.projects.restore_project(project_key_or_id)
+
+    def get_project_components(self, project_key_or_id: str) -> List[Dict[str, Any]]:
+        """Get components of a project."""
+        return self.projects.get_project_components(project_key_or_id)
+
+    def get_project_versions(
+        self, 
+        project_key_or_id: str,
+        expand: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Get versions of a project."""
+        return self.projects.get_project_versions(project_key_or_id, expand)
+
+    def get_project_roles(self, project_key_or_id: str) -> Dict[str, str]:
+        """Get roles of a project."""
+        return self.projects.get_project_roles(project_key_or_id)
+
+    def get_project_role(
+        self, 
+        project_key_or_id: str, 
+        role_id: str
+    ) -> Dict[str, Any]:
+        """Get details of a specific project role."""
+        return self.projects.get_project_role(project_key_or_id, role_id)
+
+    def get_project_types(self) -> List[Dict[str, Any]]:
+        """Get available project types."""
+        return self.projects.get_project_types()
+
+    def get_project_categories(self) -> List[Dict[str, Any]]:
+        """Get project categories."""
+        return self.projects.get_project_categories()

@@ -10,6 +10,7 @@ a backward-compatible interface to the underlying implementation.
 
 from .client import JiraClient
 from .issues import IssueManager
+from .projects import ProjectManager
 from .facade import JiraFetcher
 from .exceptions import (
     JiraAPIError,
@@ -19,12 +20,14 @@ from .exceptions import (
     JiraIssueTypeError,
     JiraPermissionError,
     JiraResourceNotFoundError,
+    JiraValidationError,
     JiraWorkflowError,
 )
 
 __all__ = [
     "JiraClient",
     "IssueManager",
+    "ProjectManager",
     "JiraFetcher",
     "JiraAPIError",
     "JiraAuthenticationError",
@@ -33,5 +36,6 @@ __all__ = [
     "JiraIssueTypeError",
     "JiraPermissionError",
     "JiraResourceNotFoundError",
+    "JiraValidationError",
     "JiraWorkflowError",
 ]

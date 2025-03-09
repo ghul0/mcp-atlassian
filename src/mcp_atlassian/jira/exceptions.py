@@ -48,6 +48,12 @@ class JiraWorkflowError(JiraAPIError):
     pass
 
 
+class JiraValidationError(JiraAPIError):
+    """Exception for data validation errors."""
+
+    pass
+
+
 class JiraConfigurationError(Exception):
     """Exception for configuration errors."""
 
