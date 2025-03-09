@@ -11,6 +11,7 @@ from .exceptions import (
     JiraAPIError,
     JiraPermissionError,
     JiraResourceNotFoundError,
+    JiraValidationError,
 )
 
 # Configure logging
@@ -436,4 +437,220 @@ class BoardManager(JiraClient):
             
             params = {
                 "startAt": start_at,
-                "
+                "maxResults": max_results
+            }
+            
+            if jql:
+                params["jql"] = jql
+            if validate_query:
+                params["validateQuery"] = validate_query
+            if fields:
+                params["fields"] = ",".join(fields)
+                
+            response = self.jira.get(url, params=params)
+            issues = response.get("issues", [])
+            
+            documents = []
+            for issue in issues:
+                issue_key = issue.get("key", "")
+                summary = issue.get("fields", {}).get("summary", "")
+                issue_type = issue.get("fields", {}).get("issuetype", {}).get("name", "")
+                status = issue.get("fields", {}).get("status", {}).get("name", "")
+                
+                # Extract description - handle potential missing fields
+                description = ""
+                if "description" in issue.get("fields", {}):
+                    if issue["fields"]["description"]:
+                        if isinstance(issue["fields"]["description"], str):
+                            description = issue["fields"]["description"]
+                        elif isinstance(issue["fields"]["description"], dict):
+                            # Handle Jira Cloud's Atlassian Document Format
+                            content_items = issue["fields"]["description"].get("content", [])
+                            for item in content_items:
+                                if item.get("type") == "paragraph" and "content" in item:
+                                    for text_item in item["content"]:
+                                        if text_item.get("type") == "text":
+                                            description += text_item.get("text", "")
+                
+                # Construct content
+                content = f"{summary}\n\n{description}" if description else summary
+                
+                # Add metadata
+                metadata = {
+                    "key": issue_key,
+                    "summary": summary,
+                    "type": issue_type,
+                    "status": status,
+                    "url": f"{self.config.url}/browse/{issue_key}",
+                    "source": "sprint",
+                    "sprint_id": sprint_id
+                }
+                
+                documents.append(Document(page_content=content, metadata=metadata))
+                
+            return documents
+        except Exception as e:
+            logger.error(f"Error retrieving sprint issues for board {board_id}, sprint {sprint_id}: {str(e)}")
+            self._handle_error(e, "board sprint issues", f"{board_id}/{sprint_id}")
+            
+    def create_board(
+        self,
+        name: str,
+        type: str,
+        filter_id: int,
+        project_key_or_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Creates a new board in Jira.
+        
+        Args:
+            name: Name of the board
+            type: Type of board ('scrum', 'kanban')
+            filter_id: ID of the filter to use for the board
+            project_key_or_id: Key or ID of the project for the board
+            
+        Returns:
+            Details of the created board
+            
+        Raises:
+            JiraPermissionError: If the user lacks permission
+            JiraValidationError: If the input is invalid
+            JiraAPIError: For other API errors
+        """
+        try:
+            url = f"{self._agile_path}/board"
+            
+            data = {
+                "name": name,
+                "type": type,
+                "filterId": filter_id
+            }
+            
+            if project_key_or_id:
+                # Add location with project reference
+                data["location"] = {
+                    "projectKeyOrId": project_key_or_id
+                }
+                
+            return self.jira.post(url, json=data)
+        except Exception as e:
+            logger.error(f"Error creating board '{name}': {str(e)}")
+            self._handle_error(e, "create board")
+            
+    def update_board(
+        self,
+        board_id: int,
+        name: Optional[str] = None,
+        filter_id: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Updates an existing board in Jira.
+        
+        Args:
+            board_id: ID of the board to update
+            name: New name for the board
+            filter_id: New filter ID for the board
+            
+        Returns:
+            Details of the updated board
+            
+        Raises:
+            JiraResourceNotFoundError: If the board is not found
+            JiraPermissionError: If the user lacks permission
+            JiraValidationError: If the input is invalid
+            JiraAPIError: For other API errors
+        """
+        try:
+            url = f"{self._agile_path}/board/{board_id}"
+            
+            data = {}
+            if name is not None:
+                data["name"] = name
+            if filter_id is not None:
+                data["filterId"] = filter_id
+                
+            if not data:  # No changes specified
+                return self.get_board(board_id)
+                
+            return self.jira.put(url, json=data)
+        except Exception as e:
+            logger.error(f"Error updating board {board_id}: {str(e)}")
+            self._handle_error(e, "update board", str(board_id))
+            
+    def delete_board(
+        self,
+        board_id: int,
+    ) -> bool:
+        """
+        Deletes a board from Jira.
+        
+        Args:
+            board_id: ID of the board to delete
+            
+        Returns:
+            True if deletion was successful
+            
+        Raises:
+            JiraResourceNotFoundError: If the board is not found
+            JiraPermissionError: If the user lacks permission
+            JiraAPIError: For other API errors
+        """
+        try:
+            url = f"{self._agile_path}/board/{board_id}"
+            self.jira.delete(url)
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting board {board_id}: {str(e)}")
+            self._handle_error(e, "delete board", str(board_id))
+            
+    def get_board_quick_filters(
+        self,
+        board_id: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves quick filters for a board.
+        
+        Args:
+            board_id: ID of the board
+            
+        Returns:
+            List of quick filters
+            
+        Raises:
+            JiraResourceNotFoundError: If the board is not found
+            JiraPermissionError: If the user lacks permission
+            JiraAPIError: For other API errors
+        """
+        try:
+            url = f"{self._agile_path}/board/{board_id}/quickfilter"
+            response = self.jira.get(url)
+            return response.get("values", [])
+        except Exception as e:
+            logger.error(f"Error retrieving quick filters for board {board_id}: {str(e)}")
+            self._handle_error(e, "board quick filters", str(board_id))
+            
+    def get_board_columns(
+        self,
+        board_id: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieves columns for a board.
+        
+        Args:
+            board_id: ID of the board
+            
+        Returns:
+            List of columns
+            
+        Raises:
+            JiraResourceNotFoundError: If the board is not found
+            JiraPermissionError: If the user lacks permission
+            JiraAPIError: For other API errors
+        """
+        try:
+            url = f"{self._agile_path}/board/{board_id}/configuration"
+            response = self.jira.get(url)
+            return response.get("columnConfig", {}).get("columns", [])
+        except Exception as e:
+            logger.error(f"Error retrieving columns for board {board_id}: {str(e)}")
+            self._handle_error(e, "board columns", str(board_id))
