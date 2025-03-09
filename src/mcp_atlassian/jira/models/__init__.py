@@ -21,7 +21,20 @@ from .issue import (
     Issue,
 )
 
+from .board import (
+    BoardLocation,
+    BoardColumnStatus,
+    BoardColumn,
+    BoardConfiguration,
+    QuickFilter,
+    BoardReference,
+    BoardCreate,
+    BoardUpdate,
+    Board,
+)
+
 __all__ = [
+    # Issue models
     "User",
     "IssueType",
     "Status",
@@ -34,4 +47,15 @@ __all__ = [
     "IssueCreate",
     "IssueUpdate",
     "Issue",
+    
+    # Board models
+    "BoardLocation",
+    "BoardColumnStatus",
+    "BoardColumn",
+    "BoardConfiguration",
+    "QuickFilter",
+    "BoardReference",
+    "BoardCreate",
+    "BoardUpdate",
+    "Board",
 ]
